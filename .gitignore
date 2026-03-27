@@ -12,3 +12,6 @@ wheels/
 .env
 uv.lock
 .python-version
+prompt.txt
+test
+result
