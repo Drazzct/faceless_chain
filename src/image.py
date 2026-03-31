@@ -5,13 +5,6 @@ import json
 import requests
 import base64
 
-load_dotenv()
-
-client = InferenceClient(
-    provider="hf-inference",
-    api_key=os.environ["HF_TOKEN"]
-)
-
 def extract_prompt(folder_path):
     with open(f"{folder_path}/script.json", "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -27,15 +20,25 @@ negative_prompt  = (
         "split screen, multi panel, collage, distorted, grainy"
     )
 
-def create_image_hf(prompt, folder_path, num):
-    image = client.text_to_image(
-                prompt,
-                negative_prompt=negative_prompt,
-                model="stabilityai/stable-diffusion-xl-base-1.0",
-            )
+def create_image_hf(folder_path):
+    load_dotenv()
 
-    file_path = f"{folder_path}/generated_image_{num}.png"
-    image.save(file_path)
+    client = InferenceClient(
+        provider="hf-inference",
+        api_key=os.environ["HF_TOKEN"]
+    )
+    
+    prompts = extract_prompt(folder_path)
+
+    for num, prompt in enumerate(prompts):
+        image = client.text_to_image(
+                    prompt,
+                    negative_prompt=negative_prompt,
+                    model="stabilityai/stable-diffusion-xl-base-1.0",
+                )
+
+        file_path = f"{folder_path}/generated_image_{num}.png"
+        image.save(file_path)
 
 def create_image_server(folder_path):
     url = os.getenv("SD_API_URL", "http://127.0.0.1:7860")
