@@ -1,25 +1,25 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
-from dotenv import load_dotenv
 import os
 import json
 from langchain_core.output_parsers import JsonOutputParser
 import re
-from image import create_image
+from image import create_image_server
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
 
 class Settings(BaseSettings):
     ai_base_url: str
     ai_model_name: str
     ai_api_key: str = "none"
     
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=".env", 
+        env_file_encoding="utf-8",
+        extra='ignore'
+    )
 
-# Khởi tạo settings
 settings = Settings()
 
-# Khởi tạo model cực kỳ gọn gàng
 model = ChatOpenAI(
     base_url=settings.ai_base_url,
     model=settings.ai_model_name,
@@ -32,16 +32,16 @@ def create_model(topic):
     json_format = """
     {
     "metadata": {
-        "topic": "Tên chủ đề",
-        "duration_target": "60s",
-        "language_voice": "Vietnamese",
-        "language_tags": "English"
+        "topic": "Topic Name",
+        "duration": "60s",
+        "total_words": "approx 150-180 words"
     },
-    "script": [
+    "full_voice_script": "The entire 60-second continuous narration in English.",
+    "visual_segments": [
         {
         "segment_id": 1,
-        "voice_text": "Nội dung lời thoại tiếng Việt (khoảng 12-15 giây mỗi đoạn để tổng đạt 60s).",
-        "image_to_show": "English tags for Stable Diffusion, comma separated, high quality, masterpiece, [Chi tiết hình ảnh]"
+        "image_description": "A clear description of the scene in English",
+        "diffusion_prompt": "masterpiece, 8k, cinematic lighting, [Stable Diffusion tags here...]"
         }
     ]
     }
@@ -49,21 +49,32 @@ def create_model(topic):
 
     prompt = ChatPromptTemplate.from_messages([
         ("system", """
-         Bạn là một chuyên gia biên kịch và kỹ sư AI (Prompt Engineer). 
-         Nhiệm vụ của bạn là tạo ra một kịch bản video ngắn 60 giây về chủ đề được cung cấp.
+        You are an expert Scriptwriter and AI Prompt Engineer. 
+        Your task is to create a professional 60-second video script in English 
+        and 5 high-quality image prompts in English for Stable Diffusion.
         """),
         
         ("human", """
-        Hãy trả về DUY NHẤT một đối tượng JSON (không kèm văn bản giải thích) theo cấu trúc sau: {json_format}
+        Please return ONLY a JSON object based on the following topic: {topic}
         
-        # QUY TẮC NỘI DUNG
-        1. **Voice Text (Tiếng Việt):** Lời thoại phải tự nhiên, lôi cuốn, phù hợp với giọng đọc AI. Tổng độ dài 5 đoạn phải khớp với khoảng 150-180 từ tiếng Việt để đảm bảo thời lượng 60 giây.
-        2. **Image Tags (Tiếng Anh):** Mỗi đoạn phải có 1 mô tả hình ảnh dạng TAGS. Phải bao gồm các từ khóa chất lượng cao như: "8k resolution, cinematic lighting, highly detailed".
-        3. **Số lượng:** Phải có chính xác 5 đoạn (segments).
-        4. **Chủ đề:** {topic}
+        ### JSON STRUCTURE GUIDE:
+        {json_format}
+        
+        ### CONTENT RULES:
+        1. **full_voice_script (English):** - Write a continuous, engaging narration without breaks.
+           - Length: 150-180 words (precisely for 60 seconds).
+           - Tone: Captivating and storytelling.
+           
+        2. **visual_segments (Exactly 5 items):**
+           - **image_description:** A prose description of what the image shows.
+           - **diffusion_prompt:** High-quality tags for Stable Diffusion (e.g., "photorealistic, 8k, highly detailed, cinematic lighting, trending on artstation").
+           - These 5 images should represent key moments throughout the 60-second script.
 
-        # VÍ DỤ TAGS MẪU
-        "majestic tiger, cosmic galaxy background, glowing red eyes, sharp focus, digital art, hyperrealistic"
+        3. **Language:**
+           - Script: English.
+           - Image Prompts & Metadata: English.
+           
+        Return only raw JSON. No conversational filler.
         """)
     ])
 
@@ -99,9 +110,8 @@ def processing():
         with open(f"{folder_path}/script.json", "w", encoding="utf-8") as f:
             json.dump(response, f, indent=4, ensure_ascii=False)
         
-        for i in range(len(response["script"])):
-            prompt = response["script"][i]["image_to_show"]
-            # create_image(prompt, folder_path, i)
+        # create_image
+        create_image_server(folder_path)
 
 if __name__ == "__main__":
     print("1. Full pipeline")
